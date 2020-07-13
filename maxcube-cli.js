@@ -1,4 +1,4 @@
-var batchTimeout = 5000;
+var batchTimeout = 2500;
 
 var MaxCube = require('maxcube2');
 var vorpal = require('vorpal')();
@@ -22,6 +22,7 @@ if (process.argv.length > 4) {
   process.argv.shift();
   process.argv.shift();
   process.argv.shift();
+
   commands.push(process.argv.join(' '));
 
   if (
@@ -45,11 +46,29 @@ batchMode = (commands.length) > 0;
 
 var maxCube = new MaxCube(ip, port);
 
+function timer() {
+  if(currentTimeout>0) {
+    currentTimeout -= 500;
+    if(currentTimeout>0) {
+      setTimeout(timer, 500);
+    } else {
+      currentTimeout = 0;
+      if(!batchMode) vorpal.log("Timeout!");
+      vorpal.exec('exit');
+      maxCube.close();
+      process.exit(1);
+    }
+  }
+}
+
 async function execCommands() {
   if (commands.length < 1) return;
+  currentTimeout = batchTimeout;
+  setTimeout(timer, 500);
 
   var result;
   while (commands.length > 0) {
+    currentTimeout = batchTimeout;
     let command = commands.shift();
     let promise = new Promise((resolve, reject) => {
       vorpal.exec(
@@ -61,21 +80,22 @@ async function execCommands() {
     });
     result = await promise;
   }
-  vorpal.exec('exit');
 }
 
 maxCube.on('connected', function () {
-  if (!batchMode) vorpal.log('Connected.');
+  if (!batchMode) vorpal.log('Connection established.');
   if (commands.length) execCommands();
 });
 
 maxCube.on('closed', function () {
   if (!batchMode) vorpal.log('Connection closed.');
+  currentTimeout = 0;
   vorpal.exec('exit');
 });
 
 maxCube.on('error', function () {
   if (!batchMode) vorpal.log('An error occured.');
+  currentTimeout = 0;
   vorpal.exec('exit');
 });
 
@@ -245,6 +265,7 @@ vorpal
   .command('delay <millis>', 'Delay of <millis> ms (for batch mode)')
   .action(function (args, callback) {
     var self = this;
+    if(batchMode)  currentTimeout = (args.millis+10);
     if(!batchMode) self.log('Waiting ' + args.millis + ' ms...');
     return new Promise((resolve, reject) => {
       setTimeout(() => resolve(), args.millis)
@@ -261,6 +282,7 @@ vorpal
   .find('exit')
   .alias('x')
   .action(function (args, callback) {
+    currentTimeout = 0;
     maxCube.close();
   });
 
