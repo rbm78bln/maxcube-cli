@@ -1,3 +1,5 @@
+var batchTimeout = 5000;
+
 var MaxCube = require('maxcube2');
 var vorpal = require('vorpal')();
 var Table = require('cli-table2');
@@ -5,19 +7,76 @@ var Table = require('cli-table2');
 var ip = process.argv[2];
 var port = process.argv[3] || 62910;
 
+var batchMode = false;
+var currentTimeout = 0;
+
 if (!ip) {
-  console.error('This command needs the ip address of the Max!Cube as argument.');
+  console.error('Usage: maxcube-cli hostname [port [command]]');
   return;
 }
 
+var commands = [];
+
+if (process.argv.length > 4) {
+  process.argv.shift();
+  process.argv.shift();
+  process.argv.shift();
+  process.argv.shift();
+  commands.push(process.argv.join(' '));
+
+  if (
+    process.argv[0] == 'temp' &&
+    process.argv[0] == 'mode' &&
+    process.argv[0] == 'tempandmode'
+  ) {
+    commands.push('delay 5000');
+  }
+
+  if (
+    process.argv[0] != 'status' &&
+    process.argv[0] != 'comm' &&
+    process.argv[0] != 'help'
+  ) {
+    commands.push('status --verbose --plain');
+  }
+  commands.push('exit');
+}
+batchMode = (commands.length) > 0;
+
 var maxCube = new MaxCube(ip, port);
 
-maxCube.on('closed', function () {
-  vorpal.log('Connection closed');
-});
+async function execCommands() {
+  if (commands.length < 1) return;
+
+  var result;
+  while (commands.length > 0) {
+    let command = commands.shift();
+    let promise = new Promise((resolve, reject) => {
+      vorpal.exec(
+        command,
+        (result) => {
+          resolve(result)
+        }
+      )
+    });
+    result = await promise;
+  }
+  vorpal.exec('exit');
+}
 
 maxCube.on('connected', function () {
-  vorpal.log('Connected');
+  if (!batchMode) vorpal.log('Connected.');
+  if (commands.length) execCommands();
+});
+
+maxCube.on('closed', function () {
+  if (!batchMode) vorpal.log('Connection closed.');
+  vorpal.exec('exit');
+});
+
+maxCube.on('error', function () {
+  if (!batchMode) vorpal.log('An error occured.');
+  vorpal.exec('exit');
 });
 
 vorpal
@@ -90,7 +149,6 @@ vorpal
           self.log(table.toString());
         }
       }
-      self.log(maxCube.getCommStatus());
       callback();
     });
   });
@@ -123,16 +181,16 @@ vorpal
     var self = this;
     maxCube.setTemperature(args.rf_address, args.degrees).then(function (success) {
       if (success) {
-        self.log('Temperature set');
+        if (!batchMode) self.log('Temperature set');
       } else {
-        self.log('Error setting temperature');
+        if (!batchMode) self.log('Error setting temperature');
       }
       callback();
     });
   });
 
 vorpal
-  .command('mode <rf_address> <mode> [until]', 'Sets mode (AUTO, MANUAL, BOOST or VACATION) of specified device. Mode VACATION needs until date/time (ISO 8601, e.g. 2019-06-20T10:00:00Z)')
+  .command('mode <rf_address> <mode> [until]', 'Sets mode (AUTO, MANUAL, BOOST or VACATION) of specified device.\nMode VACATION needs until date/time (ISO 8601, e.g. 2019-06-20T10:00:00Z)')
   .autocomplete({
     data: function () {
       return Object.keys(maxCube.getDevices()).concat(['AUTO', 'MANUAL', 'BOOST', 'VACATION']);
@@ -149,12 +207,54 @@ vorpal
     var self = this;
     maxCube.setTemperature(args.rf_address, null, args.mode, args.date_until).then(function (success) {
       if (success) {
-        self.log('Mode set');
+        if (!batchMode) self.log('Mode set');
       } else {
-        self.log('Error setting mode');
+        if (!batchMode) self.log('Error setting mode');
       }
       callback();
     });
+  });
+
+  vorpal
+  .command('tempandmode <rf_address> <degrees> <mode> [until]', 'Sets setpoint temperature and mode (AUTO, MANUAL, BOOST or VACATION) of specified device.\nMode VACATION needs until date/time (ISO 8601, e.g. 2019-06-20T10:00:00Z)')
+  .autocomplete({
+    data: function () {
+      return Object.keys(maxCube.getDevices()).concat(['AUTO', 'MANUAL', 'BOOST', 'VACATION']);
+    }
+  })
+  .validate(function (args) {
+    if (args.mode === 'VACATION' && !args.until) {
+      return 'Error: until date needed for mode VACATION';
+    } else {
+      return true;
+    }
+  })
+  .action(function (args, callback) {
+    var self = this;
+    maxCube.setTemperature(args.rf_address, args.degrees, args.mode, args.date_until).then(function (success) {
+      if (success) {
+        if (!batchMode) self.log('Temperature and mode set');
+      } else {
+        if (!batchMode) self.log('Error setting temperature and mode');
+      }
+      callback();
+    });
+  });
+
+vorpal
+  .command('delay <millis>', 'Delay of <millis> ms (for batch mode)')
+  .action(function (args, callback) {
+    var self = this;
+    if(!batchMode) self.log('Waiting ' + args.millis + ' ms...');
+    return new Promise((resolve, reject) => {
+      setTimeout(() => resolve(), args.millis)
+    });
+  });
+
+vorpal
+  .command('nop', 'No operation (for batch mode)')
+  .action(function (args, callback) {
+    callback();
   });
 
 vorpal
@@ -164,8 +264,12 @@ vorpal
     maxCube.close();
   });
 
-vorpal.history('maxcube-cli');
 
-vorpal
-  .delimiter('maxcube$')
-  .show();
+if (batchMode) {
+  vorpal.delimiter('');
+} else {
+  vorpal.history('maxcube-cli');
+  vorpal.delimiter('maxcube> ');
+}
+
+vorpal.show();
