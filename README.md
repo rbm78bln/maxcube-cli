@@ -3,6 +3,8 @@ maxcube-cli
 
 eQ-3 Max! Cube command line interface
 
+Updated to use [maxcube2](https://github.com/normen/maxcube2) interface now.
+
 
 ## Start
 ```

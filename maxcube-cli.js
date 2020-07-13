@@ -1,4 +1,4 @@
-var MaxCube = require('maxcube');
+var MaxCube = require('maxcube2');
 var vorpal = require('vorpal')();
 var Table = require('cli-table2');
 
@@ -6,7 +6,7 @@ var ip = process.argv[2];
 var port = process.argv[3] || 62910;
 
 if (!ip) {
-  console.error('This command needs the ip address of the Max! Cube as argument.');
+  console.error('This command needs the ip address of the Max!Cube as argument.');
   return;
 }
 
@@ -25,7 +25,7 @@ vorpal
   .alias('s')
   .option('-v, --verbose', 'Verbose output')
   .option('-p, --plain', 'Plain output, no table')
-  .action(function(args, callback) {
+  .action(function (args, callback) {
     var self = this;
     maxCube.getDeviceStatus(args.rf_address).then(function (devices) {
       if (args.options.verbose) {
@@ -55,7 +55,7 @@ vorpal
               device.gateway_known,
               device.panel_locked,
               device.link_error
-              ]);
+            ]);
           });
           self.log(table.toString());
         }
@@ -68,7 +68,7 @@ vorpal
               'setpoint: ' + device.setpoint + ', ' +
               'valve: ' + device.valve + ', ' +
               'mode: ' + device.mode
-              );
+            );
           });
         } else {
           var table = new Table({
@@ -85,7 +85,7 @@ vorpal
               device.setpoint,
               device.valve,
               device.temp
-              ]);
+            ]);
           });
           self.log(table.toString());
         }
@@ -101,8 +101,8 @@ vorpal
     var self = this;
     maxCube.flushDeviceCache().then(function (success) {
       self.log('Device/room cache cleared');
-    callback();
-  });
+      callback();
+    });
   });
 
 vorpal
@@ -114,26 +114,30 @@ vorpal
 
 vorpal
   .command('temp <rf_address> <degrees>', 'Sets setpoint temperature of specified device')
-  .autocomplete({ data: function () {
+  .autocomplete({
+    data: function () {
       return Object.keys(maxCube.getDevices());
-  } })
+    }
+  })
   .action(function (args, callback) {
     var self = this;
     maxCube.setTemperature(args.rf_address, args.degrees).then(function (success) {
       if (success) {
-      self.log('Temperature set');
+        self.log('Temperature set');
       } else {
         self.log('Error setting temperature');
       }
       callback();
-   });
+    });
   });
 
 vorpal
   .command('mode <rf_address> <mode> [until]', 'Sets mode (AUTO, MANUAL, BOOST or VACATION) of specified device. Mode VACATION needs until date/time (ISO 8601, e.g. 2019-06-20T10:00:00Z)')
-  .autocomplete({ data: function () {
+  .autocomplete({
+    data: function () {
       return Object.keys(maxCube.getDevices()).concat(['AUTO', 'MANUAL', 'BOOST', 'VACATION']);
-  } })
+    }
+  })
   .validate(function (args) {
     if (args.mode === 'VACATION' && !args.until) {
       return 'Error: until date needed for mode VACATION';
@@ -145,12 +149,12 @@ vorpal
     var self = this;
     maxCube.setTemperature(args.rf_address, null, args.mode, args.date_until).then(function (success) {
       if (success) {
-      self.log('Mode set');
+        self.log('Mode set');
       } else {
         self.log('Error setting mode');
       }
       callback();
-   });
+    });
   });
 
 vorpal
