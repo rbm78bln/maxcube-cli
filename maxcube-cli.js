@@ -23,14 +23,22 @@ if (process.argv.length > 4) {
   process.argv.shift();
   process.argv.shift();
 
+  if (
+    process.argv[0] == 'temp' ||
+    process.argv[0] == 'mode' ||
+    process.argv[0] == 'tempandmode'
+  ) {
+    commands.push('status --quiet');
+  }
+
   commands.push(process.argv.join(' '));
 
   if (
-    process.argv[0] == 'temp' &&
-    process.argv[0] == 'mode' &&
+    process.argv[0] == 'temp' ||
+    process.argv[0] == 'mode' ||
     process.argv[0] == 'tempandmode'
   ) {
-    commands.push('delay 5000');
+    commands.push('delay 2500');
   }
 
   if (
@@ -47,13 +55,13 @@ batchMode = (commands.length) > 0;
 var maxCube = new MaxCube(ip, port);
 
 function timer() {
-  if(currentTimeout>0) {
+  if (currentTimeout > 0) {
     currentTimeout -= 500;
-    if(currentTimeout>0) {
+    if (currentTimeout > 0) {
       setTimeout(timer, 500);
     } else {
       currentTimeout = 0;
-      if(!batchMode) vorpal.log("Timeout!");
+      if (!batchMode) vorpal.log("Timeout!");
       vorpal.exec('exit');
       maxCube.close();
       process.exit(1);
@@ -89,23 +97,28 @@ maxCube.on('connected', function () {
 
 maxCube.on('closed', function () {
   if (!batchMode) vorpal.log('Connection closed.');
-  currentTimeout = 0;
+  currentTimeout = 1000;
   vorpal.exec('exit');
 });
 
 maxCube.on('error', function () {
   if (!batchMode) vorpal.log('An error occured.');
-  currentTimeout = 0;
+  currentTimeout = 1000;
   vorpal.exec('exit');
 });
 
 vorpal
   .command('status [rf_address]', 'Get status of all or specified devices')
   .alias('s')
-  .option('-v, --verbose', 'Verbose output')
   .option('-p, --plain', 'Plain output, no table')
+  .option('-v, --verbose', 'Verbose output')
+  .option('-q, --quiet', 'No output')
   .action(function (args, callback) {
     var self = this;
+    if (args.options.quiet) {
+      args.options.verbose = false;
+      args.options.plain = false;
+    }
     maxCube.getDeviceStatus(args.rf_address).then(function (devices) {
       if (args.options.verbose) {
         if (args.options.plain) {
@@ -166,7 +179,7 @@ vorpal
               device.temp
             ]);
           });
-          self.log(table.toString());
+          if (!args.options.quiet) self.log(table.toString());
         }
       }
       callback();
@@ -235,7 +248,7 @@ vorpal
     });
   });
 
-  vorpal
+vorpal
   .command('tempandmode <rf_address> <degrees> <mode> [until]', 'Sets setpoint temperature and mode (AUTO, MANUAL, BOOST or VACATION) of specified device.\nMode VACATION needs until date/time (ISO 8601, e.g. 2019-06-20T10:00:00Z)')
   .autocomplete({
     data: function () {
@@ -265,8 +278,8 @@ vorpal
   .command('delay <millis>', 'Delay of <millis> ms (for batch mode)')
   .action(function (args, callback) {
     var self = this;
-    if(batchMode)  currentTimeout = (args.millis+10);
-    if(!batchMode) self.log('Waiting ' + args.millis + ' ms...');
+    if (batchMode) currentTimeout = (args.millis + 10);
+    if (!batchMode) self.log('Waiting ' + args.millis + ' ms...');
     return new Promise((resolve, reject) => {
       setTimeout(() => resolve(), args.millis)
     });
