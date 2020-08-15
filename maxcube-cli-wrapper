@@ -1,0 +1,19 @@
+#!/bin/sh
+
+export TERM=dumb
+
+if !cd `dirname "$0"`; then
+    echo ERROR: Cannot change to script directory 1>2
+    exit 1
+fi
+
+//
+// Vorpal does ugly stuff even if there is no terminal to handle it. *sigh*
+//
+postprocess() {
+    xargs '-d\n' echo | sed 's/.*\[ /[ /; s/  */ /g; s/ \].*/ ]/g'
+}
+
+node maxcube-cli.js "$@" </dev/null | postprocess
+
+exit $?

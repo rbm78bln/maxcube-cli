@@ -1,3 +1,0 @@
-#!/bin/sh
-
-exec node maxcube-cli.js maxcube 62910 "$@"
