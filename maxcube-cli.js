@@ -110,7 +110,7 @@ maxCube.on('error', function () {
 vorpal
   .command('status [rf_address]', 'Get status of all or specified devices')
   .alias('s')
-  .option('-p, --plain', 'Plain output, no table')
+  .option('-p, --plain', 'Plain json output, no table')
   .option('-v, --verbose', 'Verbose output')
   .option('-q, --quiet', 'No output')
   .action(function (args, callback) {
@@ -122,7 +122,7 @@ vorpal
     maxCube.getDeviceStatus(args.rf_address).then(function (devices) {
       if (args.options.verbose) {
         if (args.options.plain) {
-          self.log(devices);
+          self.log( JSON.stringify(devices, null, 2) );
         } else {
           var table = new Table({
             head: ['RF address', 'name', 'room', 'mode', 'setpoint', 'valve', 'temp', 'battery_low', 'initialized', 'fromCmd', 'error', 'valid', 'dst_active', 'gateway_known', 'panel_locked', 'link_error'],
