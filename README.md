@@ -15,7 +15,7 @@ node maxcube-cli.js <ip> [[<port>] command]
 ```
 
 ## Node RED
-maxcube-cli-wrapper was created to exec maxcube-cli from inside Node RED. It doesn't actually do much more tahn just stripping away some control characters that vorpal emits even when running in a dumb terminal.
+maxcube-cli-wrapper was created to exec maxcube-cli from inside Node RED. It doesn't actually do much more than just stripping away some control characters that vorpal emits even when running in a dumb terminal.
 
 This way you can create your maxcube-cli command line inside Node RED from your dashboard controls, execute maxcube-cli which then connects to your MAX! Cube, executes the actions that you defined, retrieves the current status and prints it to stdout as JSON, disconnects from the cube, and you can simply parse the output and update your dashboard controls.
 
